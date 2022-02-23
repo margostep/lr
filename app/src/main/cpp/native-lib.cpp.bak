@@ -1,0 +1,19 @@
+#include <jni.h>
+#include <string>
+
+#include <android/log.h>
+#define LOG_INFO(...) __android_log_print(ANDROID_LOG_INFO, "fclient_ndk", __VA_ARGS__)
+
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/android_sink.h"
+auto logger = spdlog::android_logger_mt("android", "fclient_ndk");
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_example_lr1_MainActivity_stringFromJNI(
+        JNIEnv* env,
+        jobject /* this */) {
+    std::string hello = "Kto prochital, u togo budet horoshiy den!";
+    LOG_INFO("Hello from android system log %d", 2022);
+    logger->info("Hello from spdlog {}", 2022);
+    return env->NewStringUTF(hello.c_str());
+}
