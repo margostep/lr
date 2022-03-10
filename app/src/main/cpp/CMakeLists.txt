@@ -24,7 +24,7 @@ add_library( # Sets the name of the library.
         native-lib.cpp)
 target_include_directories(lr1 PUBLIC
         C:/Users/PC/AndroidStudioProjects/lr1/app/libs/spdlog/include
-        C:/Users/PC/AndroidStudioProjects/lr1/app/libs/mbedtls/include)
+        C:/Users/PC/AndroidStudioProjects/lr1/app/libs/mbedtls/mbedtls/include)
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
 # default, you only need to specify the name of the public NDK library
@@ -55,7 +55,6 @@ set_target_properties(mbedcrypto PROPERTIES IMPORTED_LOCATION
 
 target_link_libraries( # Specifies the target library.
         lr1
-
         spdlog
         mbedcrypto
         # Links the target library to the log library
