@@ -25,13 +25,45 @@ import com.example.lr1.databinding.ActivityMainBinding;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 
-public class MainActivity extends AppCompatActivity {
+import java.text.DecimalFormat;
+
+interface TransactionEvents {
+    String enterPin(int ptc, String amount);
+    void transactionResult(boolean result);
+
+}
+
+public class MainActivity extends AppCompatActivity implements TransactionEvents {
     ActivityResultLauncher activityResultLauncher;
     // Used to load the 'lr1' library on application startup.
     static {
         System.loadLibrary("lr1");
         System.loadLibrary("mbedcrypto");
 
+    }
+    @Override
+    public void transactionResult(boolean result) {
+        runOnUiThread(()-> {
+            Toast.makeText(MainActivity.this, result ? "ok" : "failed", Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    private String pin;
+    @Override
+    public String enterPin(int ptc, String amount) {
+        pin = new String();
+        Intent it = new Intent(MainActivity.this, PinpadActivity.class);
+        it.putExtra("ptc", ptc);
+        it.putExtra("amount", amount);
+        synchronized (MainActivity.this) {
+            activityResultLauncher.launch(it);
+            try {
+                MainActivity.this.wait();
+            } catch (Exception ex) {
+                //todo: log error
+            }
+        }
+        return pin;
     }
 
     private ActivityMainBinding binding;
@@ -52,9 +84,12 @@ public class MainActivity extends AppCompatActivity {
                         if (result.getResultCode() == Activity.RESULT_OK) {
                             Intent data = result.getData();
                             // обработка результата
-                            String pin = data.getStringExtra("pin");
-                            Toast.makeText(MainActivity.this, pin,
-                                    Toast.LENGTH_SHORT).show();
+                            //String pin = data.getStringExtra("pin");
+                            //Toast.makeText(MainActivity.this, pin, Toast.LENGTH_SHORT
+                            pin = data.getStringExtra("pin");
+                            synchronized (MainActivity.this) {
+                                MainActivity.this.notifyAll();
+                            }
                         }
                     }
                 });
@@ -66,14 +101,29 @@ public class MainActivity extends AppCompatActivity {
     }
     public void onButtonClick(View v)
     {
-        Intent it = new Intent(this, PinpadActivity.class);
-        //startActivity(it);
-        activityResultLauncher.launch(it);
+        byte[] trd = stringToHex("9F0206000000000100");
+        transaction(trd);
+//        Intent it = new Intent(this, PinpadActivity.class);
+//        //startActivity(it);
+//        activityResultLauncher.launch(it);
+        /*new Thread(()-> {
+            try {
+                byte[] trd = stringToHex("9F0206000000000100");
+                transaction(trd);
+                runOnUiThread(()-> {
+                    Toast.makeText(MainActivity.this, ok ? "ok" : "failed", Toast.LENGTH_SHORT).show();
+                });
+            } catch (Exception ex) {
+                // todo: log error
+            }
+        }).start();*/
+
     }
     /**
      * A native method that is implemented by the 'lr1' native library,
      * which is packaged with this application.
      */
+    public native boolean transaction(byte[] trd);
     public native String stringFromJNI();
     public static native int initRng();
     public static native byte[] randomBytes(int no);
@@ -94,4 +144,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
 }
+
+
 

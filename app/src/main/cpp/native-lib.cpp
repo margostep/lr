@@ -45,7 +45,7 @@ Java_com_example_lr1_MainActivity_randomBytes(JNIEnv *env, jclass, jint no) {
 }
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_com_example_lr1_MainActivity_encrypt(JNIEnv *env,
-                                                    jclass, jbyteArray key, jbyteArray data)
+                                          jclass, jbyteArray key, jbyteArray data)
 {
     jsize ksz = env->GetArrayLength(key);
     jsize dsz = env->GetArrayLength(data);
@@ -79,8 +79,7 @@ Java_com_example_lr1_MainActivity_encrypt(JNIEnv *env,
 }
 
 extern "C" JNIEXPORT jbyteArray JNICALL
-Java_com_example_lr1_MainActivity_decrypt(JNIEnv *env,
-                                                    jclass, jbyteArray key, jbyteArray data)
+Java_com_example_lr1_MainActivity_decrypt(JNIEnv *env, jclass, jbyteArray key, jbyteArray data)
 {
     jsize ksz = env->GetArrayLength(key);
     jsize dsz = env->GetArrayLength(data);
@@ -101,6 +100,7 @@ Java_com_example_lr1_MainActivity_decrypt(JNIEnv *env,
     for (int i = 0; i < cn; i++)
         mbedtls_des3_crypt_ecb(&ctx, buf + i*8, buf +i*8);
 
+    //PKCS#5.simplified. need to check every padded byte for security reasons
     int sz = dsz - 8 + buf[dsz-1];
 
     jbyteArray dout = env->NewByteArray(sz);
@@ -110,4 +110,88 @@ Java_com_example_lr1_MainActivity_decrypt(JNIEnv *env,
     env->ReleaseByteArrayElements(data, pdata, 0);
     return dout;
 }
+
+JavaVM* gJvm = nullptr;
+JNIEXPORT jint JNICALL JNI_OnLoad (JavaVM* pjvm, void* reserved)
+{
+    gJvm = pjvm;
+    return JNI_VERSION_1_6;
+}
+
+JNIEnv* getEnv (bool& detach)
+{
+    JNIEnv* env = nullptr;
+    int status = gJvm->GetEnv ((void**)&env, JNI_VERSION_1_6);
+    detach = false;
+    if (status == JNI_EDETACHED)
+    {
+        status = gJvm->AttachCurrentThread (&env, NULL);
+        if (status < 0)
+        {
+            return nullptr;
+        }
+        detach = true;
+    }
+    return env;
+}
+
+void releaseEnv (bool detach, JNIEnv* env)
+{
+    if (detach && (gJvm != nullptr))
+    {
+        gJvm->DetachCurrentThread ();
+    }
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_example_lr1_MainActivity_transaction(JNIEnv *xenv, jobject xthiz, jbyteArray xtrd)
+{
+    jobject thiz = xenv->NewGlobalRef(xthiz);
+    jbyteArray trd = (jbyteArray)xenv->NewGlobalRef(xtrd);
+    std::thread t([thiz, trd] {
+        bool detach = false;
+        JNIEnv *env = getEnv(detach);
+        jclass cls = env->GetObjectClass(thiz);
+        jmethodID id = env->GetMethodID(
+                cls, "enterPin", "(ILjava/lang/String;)Ljava/lang/String;");
+
+        uint8_t* p = (uint8_t*)env->GetByteArrayElements (trd, 0);
+        jsize sz = env->GetArrayLength (trd);
+        if ((sz != 9) || (p[0] != 0x9F) || (p[1] != 0x02) || (p[2] != 0x06))
+            return false;
+        char buf[13];
+        for (int i = 0; i < 6; i++) {
+            uint8_t n = *(p + 3 + i);
+            buf[i*2] = ((n & 0xF0) >> 4) + '0';
+            buf[i*2 + 1] = (n & 0x0F) + '0';
+        }
+        buf[12] = 0x00;
+        jstring jamount = (jstring) env->NewStringUTF(buf);
+        int ptc = 3;
+        while (ptc > 0) {
+            jstring pin = (jstring) env->CallObjectMethod(thiz, id, ptc, jamount);
+            const char * utf = env->GetStringUTFChars(pin, nullptr);
+            env->ReleaseStringUTFChars(pin, utf);
+            if ((utf != nullptr) && (strcmp(utf, "1234") == 0))
+                break;
+            ptc--;
+        }
+        env->ReleaseByteArrayElements(trd, (jbyte *)p, 0);
+
+        id = env->GetMethodID(cls, "transactionResult", "(Z)V");
+        env->CallVoidMethod(thiz, id, ptc > 0);
+        env->ReleaseByteArrayElements(trd, (jbyte *)p, 0);
+        env->DeleteGlobalRef(thiz);
+        env->DeleteGlobalRef(trd);
+        releaseEnv(detach, env);
+        return true;
+    });
+    t.detach();
+    return true;
+}
+
+
+
+
 
