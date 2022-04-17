@@ -24,8 +24,14 @@ import com.example.lr1.databinding.ActivityMainBinding;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.io.IOUtils;
 
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.DecimalFormat;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 interface TransactionEvents {
     String enterPin(int ptc, String amount);
@@ -57,6 +63,7 @@ public class MainActivity extends AppCompatActivity implements TransactionEvents
         it.putExtra("amount", amount);
         synchronized (MainActivity.this) {
             activityResultLauncher.launch(it);
+
             try {
                 MainActivity.this.wait();
             } catch (Exception ex) {
@@ -83,10 +90,7 @@ public class MainActivity extends AppCompatActivity implements TransactionEvents
                     public void onActivityResult(ActivityResult result) {
                         if (result.getResultCode() == Activity.RESULT_OK) {
                             Intent data = result.getData();
-                            // обработка результата
-                            //String pin = data.getStringExtra("pin");
-                            //Toast.makeText(MainActivity.this, pin, Toast.LENGTH_SHORT
-                            pin = data.getStringExtra("pin");
+                             pin = data.getStringExtra("pin");
                             synchronized (MainActivity.this) {
                                 MainActivity.this.notifyAll();
                             }
@@ -94,30 +98,43 @@ public class MainActivity extends AppCompatActivity implements TransactionEvents
                     }
                 });
 
+    }
+    protected void testHttpClient()
+    {
+        new Thread(() -> {
+            try {
+                HttpURLConnection uc = (HttpURLConnection)
+                       // (new URL("https://www.google.ru/").openConnection());
+                (HttpURLConnection) (new URL("http://10.0.2.2:8082/api/v1/title").openConnection());
+                InputStream inputStream = uc.getInputStream();
+                String html = IOUtils.toString(inputStream);
+                String title = getPageTitle(html);
+                runOnUiThread(() ->
+                {
+                    Toast.makeText(this, title, Toast.LENGTH_LONG).show();
+                });
+            } catch (Exception ex) {
+                Log.e("fapptag", "Http client fails", ex);
+            }
+        }).start();
+    }
+    protected String getPageTitle(String html)
+    {
+        Pattern pattern = Pattern.compile("<title>(.+?)</title>", Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(html);
+        String p;
+        if (matcher.find())
+            p = matcher.group(1);
+        else
+            p = "Not found";
+        return p;
 
-        // Example of a call to a native method
-        //Button tv = findViewById(R.id.sample_text);
-        //tv.setText(stringFromJNI());
     }
     public void onButtonClick(View v)
     {
-        byte[] trd = stringToHex("9F0206000000000100");
-        transaction(trd);
-//        Intent it = new Intent(this, PinpadActivity.class);
-//        //startActivity(it);
-//        activityResultLauncher.launch(it);
-        /*new Thread(()-> {
-            try {
-                byte[] trd = stringToHex("9F0206000000000100");
-                transaction(trd);
-                runOnUiThread(()-> {
-                    Toast.makeText(MainActivity.this, ok ? "ok" : "failed", Toast.LENGTH_SHORT).show();
-                });
-            } catch (Exception ex) {
-                // todo: log error
-            }
-        }).start();*/
-
+       // byte[] trd = stringToHex("9F0206000000000100");//
+        // transaction(trd);
+        testHttpClient();
     }
     /**
      * A native method that is implemented by the 'lr1' native library,

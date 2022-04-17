@@ -193,5 +193,3 @@ Java_com_example_lr1_MainActivity_transaction(JNIEnv *xenv, jobject xthiz, jbyte
 
 
 
-
-
