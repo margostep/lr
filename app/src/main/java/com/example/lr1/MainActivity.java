@@ -90,7 +90,7 @@ public class MainActivity extends AppCompatActivity implements TransactionEvents
                     public void onActivityResult(ActivityResult result) {
                         if (result.getResultCode() == Activity.RESULT_OK) {
                             Intent data = result.getData();
-                             pin = data.getStringExtra("pin");
+                            pin = data.getStringExtra("pin");
                             synchronized (MainActivity.this) {
                                 MainActivity.this.notifyAll();
                             }
@@ -104,8 +104,8 @@ public class MainActivity extends AppCompatActivity implements TransactionEvents
         new Thread(() -> {
             try {
                 HttpURLConnection uc = (HttpURLConnection)
-                       // (new URL("https://www.google.ru/").openConnection());
-                (HttpURLConnection) (new URL("http://10.0.2.2:8082/api/v1/title").openConnection());
+                        // (new URL("https://www.google.ru/").openConnection());
+                        (HttpURLConnection) (new URL("http://10.0.2.2:8082/api/v1/title").openConnection());
                 InputStream inputStream = uc.getInputStream();
                 String html = IOUtils.toString(inputStream);
                 String title = getPageTitle(html);
@@ -132,7 +132,7 @@ public class MainActivity extends AppCompatActivity implements TransactionEvents
     }
     public void onButtonClick(View v)
     {
-       // byte[] trd = stringToHex("9F0206000000000100");//
+        // byte[] trd = stringToHex("9F0206000000000100");//
         // transaction(trd);
         testHttpClient();
     }
@@ -161,6 +161,7 @@ public class MainActivity extends AppCompatActivity implements TransactionEvents
     }
 
 }
+
 
 
 
